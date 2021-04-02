@@ -1,4 +1,5 @@
 tester/
+P2a/tests/
 *.in
 *.out
 *.rc
@@ -11,3 +12,5 @@ tester/
 *.binary
 *.err
 *.stdin
+*.pre
+
