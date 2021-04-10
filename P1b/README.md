@@ -4,7 +4,6 @@
 extern int sys_getreadcount(void);
 //add to (*syscalls[])(void)
 [SYS_getreadcount] sys_getreadcount,
-
 ```
 
 ### add to syscall.h
