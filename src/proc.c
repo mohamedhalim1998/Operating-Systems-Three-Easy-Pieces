@@ -6,7 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-
+#include "pstat.h"
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -331,7 +331,6 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -348,14 +347,12 @@ scheduler(void)
     int r = 0;
     if(count != 0)
          r = seed % (count + 1);
-    int co = 0;
-//    struct proc *maxproc = ptable.proc;
+    count = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
-      co += p->tickets;
-//      cprintf("proc tickets =  %d, random = %d,  c =%d \n", p->tickets, r, co);
-      if(co >= r){   
+      count += p->tickets;
+      if(count >= r){   
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -363,7 +360,6 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
       p->ticks++;
-  //    cprintf("proc tickets =  %d, random = %d, count =%d,  c =%d \n", p->tickets, r, count, co);
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
@@ -374,7 +370,6 @@ scheduler(void)
       }
     }   
     release(&ptable.lock);
-
   }
 }
 
@@ -553,5 +548,20 @@ procdump(void)
         cprintf(" %p", pc[i]);
     }
     cprintf("\n");
+  }}
+
+void
+getpstat(struct pstat* ps){
+    struct proc *p;
+   acquire(&ptable.lock);
+   int i = 0;
+  for(p = ptable.proc; p< &ptable.proc[NPROC]; p++, i++){
+      if(p->state == UNUSED)
+          continue;
+      ps->inuse[i] = 1;
+      ps->pid[i] = p->pid;
+      ps->ticks[i] = p->ticks;
+      ps->tickets[i] = p->tickets;
   }
+  release(&ptable.lock);
 }

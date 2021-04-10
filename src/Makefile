@@ -184,6 +184,7 @@ UPROGS=\
 	_myprogram\
 	_test_1\
 	_test_2\
+	_forkt\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

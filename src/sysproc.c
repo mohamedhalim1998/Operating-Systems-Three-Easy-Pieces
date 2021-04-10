@@ -101,15 +101,13 @@ sys_settickets(void)
         return -1;
     if(n < 0)
         return -1;
-    int pid = myproc()->pid;
     myproc()->tickets = n;
-    cprintf("setting tickets of proc %d to %d\n", pid, n);
     return 0;
-   // int pid = myproc() ->pid; 
 }
 int sys_getpinfo(void){
    struct pstat *ps;
    if(argint(0,  (int*)(&ps)) < 0)
        return -1;
+   getpstat(ps);
  return 0;
 }
