@@ -12,8 +12,9 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
-static struct proc *initproc;
 
+static struct proc *initproc;
+int seed = 1234;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -88,7 +89,8 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-
+  p->tickets = 1;
+  p->inuse = 1;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -189,6 +191,7 @@ fork(void)
     return -1;
   }
 
+
   // Copy process state from proc.
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
     kfree(np->kstack);
@@ -215,7 +218,7 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
-
+  np->tickets = curproc->tickets;
   release(&ptable.lock);
 
   return pid;
@@ -295,6 +298,9 @@ wait(void)
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
+        p->tickets = 0;
+        p->ticks = 0;
+        p->inuse = 0;
         release(&ptable.lock);
         return pid;
       }
@@ -332,24 +338,41 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    int count = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+         if(p->state != RUNNABLE)
+             continue;
+         count += p->tickets;
+    }
+    seed = (8121 * seed + 28411) % 134456;
+    int r = 0;
+    if(count != 0)
+         r = seed % (count + 1);
+    int co = 0;
+//    struct proc *maxproc = ptable.proc;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
-
+      co += p->tickets;
+//      cprintf("proc tickets =  %d, random = %d,  c =%d \n", p->tickets, r, co);
+      if(co >= r){   
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-
+      p->ticks++;
+  //    cprintf("proc tickets =  %d, random = %d, count =%d,  c =%d \n", p->tickets, r, count, co);
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
-    }
+      break;
+      }
+    }   
     release(&ptable.lock);
 
   }
