@@ -13,4 +13,4 @@ P2a/tests/
 *.err
 *.stdin
 *.pre
-
+*/.vscode/
