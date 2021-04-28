@@ -111,3 +111,26 @@ int sys_getpinfo(void){
    getpstat(ps);
  return 0;
 }
+int
+sys_mprotect(void)
+{
+    int addr;
+    int len;
+    if(argint(0,& addr) < 0)
+        return -1;
+    if(argint(1, &len) < 0)
+        return -1;
+    return mprotect((void *)addr,  len);
+}
+int
+sys_munprotect(void)
+{
+    int addr;
+    int len;
+    if(argint(0,& addr) < 0)
+        return -1;
+    if(argint(1, &len) < 0)
+        return -1;
+
+    return munprotect((void * )addr,  len);
+}

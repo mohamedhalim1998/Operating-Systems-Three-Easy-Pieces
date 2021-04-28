@@ -3,25 +3,29 @@
 #include "user.h"
 #include "fs.h"
 #include "pstat.h"
+#include "mmu.h"
 int
 main(int argc, char *argv[])
 {
-//  int x = 0;
-  int ticket = atoi(argv[1]);
- // settickets(tickets);
-  printf(1, "Tickets: %d\n", ticket);
-  settickets(ticket);
-//  int inuse[64];
- // int pid[64];
- // int tickets[64];
- // int ticks[64]
-  struct pstat p;
-   for(int i = 0; i < 1000; i++){ 
-    getpinfo(&p);
-    for(int j = 0; j < 64; j++)
-      if(p.pid[j] == getpid())
-       printf(1, "ticks: %d , tickets = %d \n", p.ticks[j] ,p.tickets[j]);  
-   }
+     char *start = sbrk(0);
+  sbrk(PGSIZE);
+  *start=100;
+  mprotect(start, 1) ;
+  int child=fork();
+  if(child==0){
+	printf(1, "protected value = %d\n",(uint) start);
+        munprotect(start, 1) ;
+        *start=5;
+        printf(1, "After unprotecting the value became = %d\n",(uint) start);
+        exit();
+  }
+  else if(child>0){
+        wait();
+        printf(1, "\nWatch this,I'll trap now\n");
+        *start=5;
+        printf(1, "\nThis statement will not be printed\n");
+        exit();
+  }
   exit();
 }
 

@@ -385,6 +385,44 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
   return 0;
 }
 
+int 
+mprotect(void *addr, int len){
+    if(len <= 0 || (uint)addr+len*PGSIZE>myproc()->sz){
+        cprintf("mprotect: requested memory out of place %d the size is %d \n",(uint)addr+len*PGSIZE, myproc()->sz);
+        return -1;
+    }
+    if((uint) addr % PGSIZE != 0){
+        cprintf("mprotect: address must be page aligned\n");
+        return-1;
+    }
+    pte_t *page;
+    int limit = (int) len * PGSIZE +(int) addr;
+    for(int i =(int) addr; i < limit; i++){
+        page = walkpgdir(myproc()->pgdir, (void *)i, 0);
+        *page  = *page & ~PTE_W;
+    }
+      lcr3(V2P(myproc()->pgdir));
+    return 0;
+}
+int 
+munprotect(void *addr, int len){
+    if(len <= 0 || (int)addr+len*PGSIZE>myproc()->sz){
+        cprintf("munprotect: requested memory out of place %d the size is %d\n",(int)addr+len*PGSIZE, myproc()->sz);
+        return -1;
+    }
+    if((uint) addr % PGSIZE != 0){
+        cprintf("munprotect: address must be page aligned\n");
+        return-1;
+    }
+    pte_t *page;
+    int limit =(int) len * PGSIZE + (int) addr;
+    for(int i =(int) addr; i < limit; i++){
+        page = walkpgdir(myproc()->pgdir, (void *)i, 0);
+        *page  = *page | PTE_W;
+    }
+   lcr3(V2P(myproc()->pgdir));
+    return 0;
+}
 //PAGEBREAK!
 // Blank page.
 //PAGEBREAK!
