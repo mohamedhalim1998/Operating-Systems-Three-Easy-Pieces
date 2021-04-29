@@ -393,6 +393,7 @@ mprotect(void *addr, int len){
     }
     if((uint) addr % PGSIZE != 0){
         cprintf("mprotect: address must be page aligned\n");
+    
         return-1;
     }
     pte_t *page;
@@ -412,7 +413,7 @@ munprotect(void *addr, int len){
     }
     if((uint) addr % PGSIZE != 0){
         cprintf("munprotect: address must be page aligned\n");
-        return-1;
+        return -1;
     }
     pte_t *page;
     int limit =(int) len * PGSIZE + (int) addr;
