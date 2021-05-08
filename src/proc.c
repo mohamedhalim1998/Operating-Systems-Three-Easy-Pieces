@@ -565,3 +565,81 @@ getpstat(struct pstat* ps){
   }
   release(&ptable.lock);
 }
+
+int
+clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack)
+{
+  int i, pid;
+  struct proc *np;
+  struct proc *curproc = myproc();
+
+  // Allocate process.
+  if((np = allocproc()) == 0){
+    return -1;
+  }
+
+
+  // Copy process state from proc.
+  np->pgdir = curproc->pgdir;
+  np->sz = curproc->sz;
+  np->parent = curproc;
+  *np->tf = *curproc->tf;
+  void * retaddr = stack + PGSIZE - 3 * sizeof(void*);
+  *(uint*) retaddr  = 0xFFFFFFFF;
+
+  void * arg1add = stack + PGSIZE - 2 * sizeof(void*);
+  *(uint*) arg1add  = (uint) arg1;
+  void * arg2add = stack + PGSIZE - sizeof(void*);
+  *(uint*) arg2add  = (uint) arg2;
+  np->tf->esp = (uint) stack;
+
+  np->tf->esp += PGSIZE -3*sizeof(void*) ;
+  np->tf->ebp = np->tf->esp;
+  np->tf->eip = (uint) fcn;
+  // Clear %eax so that fork returns 0 in the child.
+  np->tf->eax = 0;
+
+  for(i = 0; i < NOFILE; i++)
+    if(curproc->ofile[i])
+      np->ofile[i] = filedup(curproc->ofile[i]);
+  np->cwd = idup(curproc->cwd);
+
+  safestrcpy(np->name, curproc->name, sizeof(curproc->name));
+
+  pid = np->pid;
+
+  acquire(&ptable.lock);
+  np->state = RUNNABLE;
+  np->tickets = curproc->tickets;
+  release(&ptable.lock);
+
+  return pid;
+
+}
+int 
+join(void **stack)
+{
+    struct proc *p;
+    struct proc *cp = myproc();
+    acquire(&ptable.lock);
+
+    for(;;)
+    {
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+      {
+        if(p->parent != cp && p->parent->pgdir != p->pgdir)
+            continue;
+        if(p->state == ZOMBIE){
+            int pid = p->pid;
+            p->state = UNUSED;
+            kfree(p->kstack);
+            release(&ptable.lock);
+            return pid;
+        }
+
+      }
+     // release(&ptable.lock);
+      sleep(cp, &ptable.lock);
+    }
+
+}

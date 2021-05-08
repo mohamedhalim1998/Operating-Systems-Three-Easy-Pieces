@@ -121,6 +121,8 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 void            getpstat(struct pstat *ps);
+int             clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack);
+int             join(void **stack);
 // swtch.S
 void            swtch(struct context**, struct context*);
 

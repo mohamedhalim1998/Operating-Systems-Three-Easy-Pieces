@@ -1,4 +1,4 @@
-#include "types.h"
+/*#include "types.h"
 #include "stat.h"
 #include "user.h"
 #include "param.h"
@@ -87,4 +87,4 @@ malloc(uint nbytes)
       if((p = morecore(nunits)) == 0)
         return 0;
   }
-}
+}*/
