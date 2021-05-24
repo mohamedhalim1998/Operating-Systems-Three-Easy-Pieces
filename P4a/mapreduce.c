@@ -7,13 +7,17 @@
 
 #include "common.h"
 #include "common_threads.h"
-#define SIZE 1000000
+#define SIZE 100000
 
 pthread_mutex_t val_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t sort_lock = PTHREAD_MUTEX_INITIALIZER;
 
+struct data_node {
+   char *val;
+   struct data_node *next;
+};
 struct data_item {
-   char *data[100];
+   struct data_node *data;
    char *key;
 };
 struct node {
@@ -30,6 +34,7 @@ struct reduce_args {
 struct node *sorted_data;
 struct data_item data_values[SIZE];
 int partions;
+Partitioner partioner;
 void reduce_thread(void *arg) {
    struct reduce_args *args = arg;
    int partion = args->partition_number;
@@ -52,28 +57,24 @@ char *get_next(char *key, int partition_number) {
    while (data_values[hash + i].key != NULL &&
           strcmp(key, data_values[hash + i].key) != 0) {
       i++;
-      printf("inc: %d", i);
    }
    if (data_values[hash + i].key == NULL) {
       data_values[hash + i].key = malloc(strlen(key) * sizeof(char));
       strcpy(data_values[hash + i].key, key);
    }
-   int j = 0;
-
-   while (data_values[hash + i].data[j] != NULL) {
-      j++;
+   if (data_values[hash + i].data != NULL) {
+      char *res = data_values[hash + i].data->val;
+      data_values[hash + i].data = data_values[hash + i].data->next;
+      return res;
+   } else {
+      return NULL;
    }
-   if (j == 0) return NULL;
-   j--;
-   char *res = data_values[hash + i].data[j];
-   data_values[hash + i].data[j] = NULL;
-   return res;
 }
 
 void MR_Run(int argc, char *argv[], Mapper map, int num_mappers, Reducer reduce,
             int num_reducers, Partitioner partition) {
    sorted_data = malloc(num_reducers * sizeof(struct node));
-
+   partioner = partition;
    partions = num_reducers;
    for (int i = 1; i < argc;) {
       pthread_t p[num_mappers];
@@ -102,10 +103,11 @@ void MR_Run(int argc, char *argv[], Mapper map, int num_mappers, Reducer reduce,
    for (int i = 0; i < num_reducers; i++) {
       Pthread_join(p[i], NULL);
    }
+   free(sorted_data);
 }
 
 void MR_Emit(char *key, char *value) {
-   int partion = MR_DefaultHashPartition(key, partions);
+   int partion = partioner(key, partions);
    int hash = MR_DefaultHashPartition(key, SIZE);
    Pthread_mutex_lock(&val_lock);
    int i = 0;
@@ -117,12 +119,13 @@ void MR_Emit(char *key, char *value) {
       data_values[hash + i].key = malloc(strlen(key) * sizeof(char));
       strcpy(data_values[hash + i].key, key);
    }
-   int j = 0;
-   while (data_values[hash + i].data[j] != NULL) {
-      j++;
+   struct data_node *data_node = malloc(sizeof(struct data_node));
+   if (data_values[hash + i].data != NULL) {
+      data_node->next = data_values[hash + i].data;
    }
-   data_values[hash + i].data[j] = malloc(strlen(value) * sizeof(char));
-   strcpy(data_values[hash + i].data[j], value);
+   data_values[hash + i].data = data_node;
+   data_node->val = malloc(strlen(value) * sizeof(char));
+   strcpy(data_node->val, value);
    Pthread_mutex_unlock(&val_lock);
 
    Pthread_mutex_lock(&sort_lock);
